@@ -17,22 +17,42 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
-INTERFACE="mobiledata"
+#!/bin/sh
+# Hotplug script for ModemManager events.  Place in /etc/hotplug.d/iface/13-keepalive_modemmanager
+# and give execute permission.  
+#
+# Copyright 2019 Nicholas Smith <mips171@icloud.com>
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
 
-DISABLED=$(/usr/bin/mmcli -m 0 | grep disabled)
-SEARCHING=$(/usr/bin/mmcli -m 0 | grep searching)
-REGISTERED=$(/usr/bin/mmcli -m 0 | grep registered)
-CONNECTED=$(/usr/bin/mmcli -m 0 | grep connected)
-IDLE=$(/usr/bin/mmcli -m 0 | grep idle)
+MODEMIFACE="mobiledata"
+
+modemstatus=$(/usr/bin/mmcli -m 0)
+DISABLED=$(echo $modemstatus | grep -w "disabled")
+SEARCHING=$(echo $modemstatus | grep -w "searching")
+REGISTERED=$(echo $modemstatus | grep -w "registered")
+CONNECTED=$(echo $modemstatus | grep -w "connected")
+IDLE=$(echo $modemstatus | grep -w "idle")
 
 RUNNING="0" # Used to keep incidental events during the execution of one branch from triggering another branch.
 
 if [ -n "$DISABLED" ]; then
-	logger -t INFO	"Modem is disabled.  Will not attempt to keep connection alive."
+	logger -t INFO	"Modem is disabled. Will attempt to initiate connection."
 	logger -t DEBUG "$DISABLED"
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
-		ifup $INTERFACE && $RUNNING="0"
+		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
 	fi
 fi
 
@@ -41,7 +61,7 @@ if [ -n "$CONNECTED" ]; then
 		if [ "$RUNNING" -eq "0" ]; then
 			logger -t INFO "Modem failed ping test. Reconnecting."
 			RUNNING="1"
-			ifdown $INTERFACE && ifup $INTERFACE && RUNNING=0
+			ifdown $MODEMIFACE && ifup $MODEMIFACE && RUNNING="0"
 		else
 			logger -t INFO "Modem is connected."
 			logger -t INFO "$CONNECTED"
@@ -53,7 +73,7 @@ if [ -n "$SEARCHING" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		logger -t INFO "Modem is searching.  Attempting to bring modem back online."
 		$RUNNING="1"
-		ifdown $INTERFACE && ifup $INTERFACE && RUNNING="0"
+		ifdown $MODEMIFACE && ifup $MODEMIFACE && RUNNING="0"
 	fi
 fi
 
@@ -61,7 +81,7 @@ if [ -n "$IDLE" ]; then
         if [ "$RUNNING" -eq "0" ]; then
                 $RUNNING="1"
                 logger -t INFO "Modem is idle.  Attempting to bring modem back online."
-                ifdown $INTERFACE && ifup $INTERFACE && $RUNNING="0"
+                ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
         fi
 fi
 
@@ -69,6 +89,6 @@ if [ -n "$REGISTERED" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
 		logger -t INFO "Modem is registered. Attempting to bring modem back online."
-		ifdown $INTERFACE && ifup $INTERFACE && $RUNNING="0"
+		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
 	fi
 fi
