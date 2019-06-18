@@ -41,8 +41,8 @@ if [ -n "$CONNECTED" ]; then
 	if [ "$(/bin/ping -I wwan0 -c 1 8.8.8.8 &> /dev/null ; echo $?)" -eq "1" ]; then # 1 is status code for host unreachable
 		if [ "$RUNNING" -eq "0" ]; then
 			logger -t INFO "Modem failed ping test. Reconnecting."
-			RUNNING="1"
-			ifdown $MODEMIFACE && ifup $MODEMIFACE && RUNNING="0"
+			$RUNNING="1"
+			ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
 		else
 			logger -t INFO "Modem is connected."
 			logger -t INFO "$CONNECTED"
@@ -54,7 +54,7 @@ if [ -n "$SEARCHING" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		logger -t INFO "Modem is searching.  Attempting to bring modem back online."
 		$RUNNING="1"
-		ifdown $MODEMIFACE && ifup $MODEMIFACE && RUNNING="0"
+		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
 	fi
 fi
 
