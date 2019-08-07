@@ -1,52 +1,47 @@
 #!/bin/sh
-# Hotplug script for ModemManager events.  Place in /etc/hotplug.d/iface/13-keepalive_modemmanager
+# Hotplug script for ModemManager events.  Place in /etc/hotplug.d/iface/30-keepalive_modemmanager
 # and give execute permission.  
 #
 # Copyright 2019 Nicholas Smith <mips171@icloud.com>
 #
-# This program is free software: you can redistribute it and/or
-# modify it under the terms of version 2 of the GNU General Public
-# License as published by the Free Software Foundation
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-# 
 
+if [ $INTERFACE = "mobiledata" ]; then
+if [ $ACTION != "ifup" ]; then
 MODEMIFACE="mobiledata"
 
-modemstatus=$(/usr/bin/mmcli -m 0)
-DISABLED=$(echo $modemstatus | grep -w "disabled")
-SEARCHING=$(echo $modemstatus | grep -w "searching")
-REGISTERED=$(echo $modemstatus | grep -w "registered")
-CONNECTED=$(echo $modemstatus | grep -w "connected")
-IDLE=$(echo $modemstatus | grep -w "idle")
+# TODO get modem index dynamically
+/usr/bin/mmcli -m 0 > /tmp/modemStatus 
+DISABLED=$(cat /tmp/modemStatus | grep -w "disabled")
+SEARCHING=$(cat /tmp/modemStatus | grep -w "searching")
+REGISTERED=$(cat /tmp/modemStatus | grep -w "registered")
+CONNECTED=$(cat /tmp/modemStatus | grep -w "connected")
+IDLE=$(cat /tmp/modemStatus | grep -w "idle")
 
-RUNNING="0" # Used to keep incidental events during the execution of one branch from triggering another branch.
+RUNNING="0" # A sort of lock
+
+logger -t INFO "Hotplug: Checking if modem is connected."
 
 if [ -n "$DISABLED" ]; then
 	logger -t INFO	"Modem is disabled. Will attempt to initiate connection."
 	logger -t DEBUG "$DISABLED"
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
-		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		ifup $MODEMIFACE
 	fi
 fi
 
 if [ -n "$CONNECTED" ]; then
-	if [ "$(/bin/ping -I wwan0 -c 1 8.8.8.8 &> /dev/null ; echo $?)" -eq "1" ]; then # 1 is status code for host unreachable
+	sleep 10
+	if [ "$(/bin/ping -c 1 www.telcoantennas.com.au &> /dev/null ; echo $?)" -eq "1" ]; then
 		if [ "$RUNNING" -eq "0" ]; then
-			logger -t INFO "Modem failed ping test. Reconnecting."
 			$RUNNING="1"
-			ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
-		else
-			logger -t INFO "Modem is connected."
-			logger -t INFO "$CONNECTED"
+			logger -t INFO "Modem failed ping test. Reconnecting."
+			/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+			ifup $MODEMIFACE
 		fi
+	else
+		logger -t INFO "Modem is connected."
 	fi
 fi
 
@@ -54,22 +49,34 @@ if [ -n "$SEARCHING" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		logger -t INFO "Modem is searching.  Attempting to bring modem back online."
 		$RUNNING="1"
-		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		ifup $MODEMIFACE
+	else
+		logger -t INFO "Modem is not searching."
 	fi
 fi
 
 if [ -n "$IDLE" ]; then
-        if [ "$RUNNING" -eq "0" ]; then
-                $RUNNING="1"
-                logger -t INFO "Modem is idle.  Attempting to bring modem back online."
-                ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
-        fi
+	if [ "$RUNNING" -eq "0" ]; then
+		$RUNNING="1"
+		logger -t INFO "Modem is idle.  Attempting to bring modem back online."
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		ifup $MODEMIFACE
+	else 
+		logger -t INFO "Modem is not idle."
+	fi
 fi
 
 if [ -n "$REGISTERED" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
 		logger -t INFO "Modem is registered. Attempting to bring modem back online."
-		ifdown $MODEMIFACE && ifup $MODEMIFACE && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		ifup $MODEMIFACE
+	else
+		logger -t INFO "Modem is not registered."
 	fi
+fi
+logger -t INFO "Modem hotplug script ran."
+fi
 fi
