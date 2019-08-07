@@ -26,8 +26,9 @@ if [ -n "$DISABLED" ]; then
 	logger -t DEBUG "$DISABLED"
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
 		ifup $MODEMIFACE
+		$RUNNING="0"
 	fi
 fi
 
@@ -37,8 +38,9 @@ if [ -n "$CONNECTED" ]; then
 		if [ "$RUNNING" -eq "0" ]; then
 			$RUNNING="1"
 			logger -t INFO "Modem failed ping test. Reconnecting."
-			/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+			/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
 			ifup $MODEMIFACE
+			$RUNNING="0"
 		fi
 	else
 		logger -t INFO "Modem is connected."
@@ -49,8 +51,9 @@ if [ -n "$SEARCHING" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		logger -t INFO "Modem is searching.  Attempting to bring modem back online."
 		$RUNNING="1"
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
 		ifup $MODEMIFACE
+		$RUNNING="0"
 	else
 		logger -t INFO "Modem is not searching."
 	fi
@@ -60,8 +63,9 @@ if [ -n "$IDLE" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
 		logger -t INFO "Modem is idle.  Attempting to bring modem back online."
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
 		ifup $MODEMIFACE
+		$RUNNING="0"
 	else 
 		logger -t INFO "Modem is not idle."
 	fi
@@ -71,8 +75,9 @@ if [ -n "$REGISTERED" ]; then
 	if [ "$RUNNING" -eq "0" ]; then
 		$RUNNING="1"
 		logger -t INFO "Modem is registered. Attempting to bring modem back online."
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start && $RUNNING="0"
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
 		ifup $MODEMIFACE
+		$RUNNING="0"
 	else
 		logger -t INFO "Modem is not registered."
 	fi
