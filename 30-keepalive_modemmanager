@@ -36,7 +36,7 @@ fi
 
 if [ -n "$CONNECTED" ]; then
 	sleep 10
-	if [ "$(/bin/ping -c 1 www.telcoantennas.com.au &> /dev/null ; echo $?)" -eq "1" ]; then
+	if [ "$(/bin/ping -c 1 8.8.8.8 &> /dev/null ; echo $?)" -eq "1" ]; then
 		if [ "$RUNNING" -eq "0" ]; then
 			$RUNNING="1"
 			logger -t INFO "Modem failed ping test. Reconnecting."
