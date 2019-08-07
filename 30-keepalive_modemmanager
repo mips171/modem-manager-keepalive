@@ -4,6 +4,8 @@
 #
 # Copyright 2019 Nicholas Smith <mips171@icloud.com>
 #
+#  SPDX-License-Identifier: GPL-2.0-only
+#
 
 if [ $INTERFACE = "mobiledata" ]; then
 if [ $ACTION != "ifup" ]; then
