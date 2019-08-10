@@ -20,6 +20,7 @@ IDLE=$(cat /tmp/modemStatus | grep -w "idle")
 RUNNING="0" # A sort of lock
 
 checkandreconnect() {
+	logger -t INFO "Giving 10 extra seconds to complete modem setup."
 	sleep 10
 	logger -t INFO "Beginning ping test."
 	ping -c3 openwrt.org
@@ -59,12 +60,12 @@ if [ -n "$DISABLED" ]; then
 fi
 
 if [ -n "$CONNECTED" ]; then
-	logger -t INFO "Waiting to check modem connectivity."
+	logger -t INFO "Modem reports as connected. Checking actual connectivity."
 	checkandreconnect
 fi
 
 if [ -n "$SEARCHING" ]; then
-	logger -t INFO "Modem is searching. Giving 10 extra seconds."
+	logger -t INFO "Modem is searching."
 	checkandreconnect
 fi
 
