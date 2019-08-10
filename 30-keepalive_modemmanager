@@ -4,8 +4,6 @@
 #
 # Copyright 2019 Nicholas Smith <mips171@icloud.com>
 #
-#  SPDX-License-Identifier: GPL-2.0-only
-#
 
 if [ $INTERFACE = "mobiledata" ]; then
 if [ $ACTION != "ifup" ]; then
@@ -35,17 +33,20 @@ if [ -n "$DISABLED" ]; then
 fi
 
 if [ -n "$CONNECTED" ]; then
+	logger -t INFO "Waiting to check modem connectivity."
 	sleep 10
-	if [ "$(/bin/ping -c 1 8.8.8.8 &> /dev/null ; echo $?)" -eq "1" ]; then
-		if [ "$RUNNING" -eq "0" ]; then
-			$RUNNING="1"
-			logger -t INFO "Modem failed ping test. Reconnecting."
-			/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
-			ifup $MODEMIFACE
-			$RUNNING="0"
-		fi
+	logger -t INFO "Beginning ping test."
+	ping -c3 openwrt.org
+	if [ $? -eq 0 ]; then
+		logger -t INFO "Modem is connected. 3 successful pings."
 	else
-		logger -t INFO "Modem is connected."
+                if [ "$RUNNING" -eq "0" ]; then                                                                                  
+                        $RUNNING="1"                                                                                             
+                        logger -t INFO "Modem failed ping test. Reconnecting."                                                   
+                        /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
+                        ifup $MODEMIFACE                                                                                         
+                        $RUNNING="0"                                                                                             
+                fi
 	fi
 fi
 
