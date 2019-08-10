@@ -19,21 +19,7 @@ IDLE=$(cat /tmp/modemStatus | grep -w "idle")
 
 RUNNING="0" # A sort of lock
 
-logger -t INFO "Hotplug: Checking if modem is connected."
-
-if [ -n "$DISABLED" ]; then
-	logger -t INFO	"Modem is disabled. Will attempt to initiate connection."
-	logger -t DEBUG "$DISABLED"
-	if [ "$RUNNING" -eq "0" ]; then
-		$RUNNING="1"
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
-		ifup $MODEMIFACE
-		$RUNNING="0"
-	fi
-fi
-
-if [ -n "$CONNECTED" ]; then
-	logger -t INFO "Waiting to check modem connectivity."
+checkandreconnect() {
 	sleep 10
 	logger -t INFO "Beginning ping test."
 	ping -c3 openwrt.org
@@ -45,45 +31,52 @@ if [ -n "$CONNECTED" ]; then
                         logger -t INFO "Modem failed ping test. Reconnecting."                                                   
                         /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
                         ifup $MODEMIFACE                                                                                         
-                        $RUNNING="0"                                                                                             
+                        $RUNNING="0"
+		else
+			logger -t INFO "Modem is already reconnecting. Stopping."
                 fi
 	fi
+}
+
+reconnect() {
+        if [ "$RUNNING" -eq "0" ]; then                                                                                  
+		$RUNNING="1"                                                                                             
+		logger -t INFO "Reconnecting modem now."                                                   
+		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
+		ifup $MODEMIFACE                                                                                         
+		$RUNNING="0"
+	else
+		logger -t INFO "Modem is already reconnecting. Stopping."
+	fi
+}
+
+logger -t INFO "Hotplug: Modem Hotplug script is running."
+
+if [ -n "$DISABLED" ]; then
+	logger -t INFO	"Modem is disabled. Will attempt to initiate connection."
+	logger -t DEBUG "$DISABLED"
+	reconnect
+fi
+
+if [ -n "$CONNECTED" ]; then
+	logger -t INFO "Waiting to check modem connectivity."
+	checkandreconnect
 fi
 
 if [ -n "$SEARCHING" ]; then
-	if [ "$RUNNING" -eq "0" ]; then
-		logger -t INFO "Modem is searching.  Attempting to bring modem back online."
-		$RUNNING="1"
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
-		ifup $MODEMIFACE
-		$RUNNING="0"
-	else
-		logger -t INFO "Modem is not searching."
-	fi
+	logger -t INFO "Modem is searching. Giving 10 extra seconds."
+	checkandreconnect
 fi
 
 if [ -n "$IDLE" ]; then
-	if [ "$RUNNING" -eq "0" ]; then
-		$RUNNING="1"
-		logger -t INFO "Modem is idle.  Attempting to bring modem back online."
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
-		ifup $MODEMIFACE
-		$RUNNING="0"
-	else 
-		logger -t INFO "Modem is not idle."
-	fi
+	logger -t INFO "Modem is idle.  Attempting to bring modem back online."
+	reconnect
 fi
 
 if [ -n "$REGISTERED" ]; then
-	if [ "$RUNNING" -eq "0" ]; then
-		$RUNNING="1"
-		logger -t INFO "Modem is registered. Attempting to bring modem back online."
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
-		ifup $MODEMIFACE
-		$RUNNING="0"
-	else
-		logger -t INFO "Modem is not registered."
-	fi
+	logger -t INFO "Modem is registered."
+	checkandreconnect
+
 fi
 logger -t INFO "Modem hotplug script ran."
 fi
