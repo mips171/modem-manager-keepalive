@@ -5,8 +5,8 @@
 # Copyright 2019 Nicholas Smith <mips171@icloud.com>
 #
 
-if [ $INTERFACE = "mobiledata" ]; then
-if [ $ACTION != "ifup" ]; then
+if [ "$INTERFACE" = "mobiledata" ]; then
+if [ "$ACTION" != "ifup" ]; then
 MODEMIFACE="mobiledata"
 
 # TODO get modem index dynamically
@@ -28,11 +28,11 @@ checkandreconnect() {
 		logger -t INFO "Modem is connected. 3 successful pings."
 	else
                 if [ "$RUNNING" -eq "0" ]; then                                                                                  
-                        $RUNNING="1"                                                                                             
+                        RUNNING="1"                                                                                             
                         logger -t INFO "Modem failed ping test. Reconnecting."                                                   
                         /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
                         ifup $MODEMIFACE                                                                                         
-                        $RUNNING="0"
+                        RUNNING="0"
 		else
 			logger -t INFO "Modem is already reconnecting. Stopping."
                 fi
@@ -41,11 +41,11 @@ checkandreconnect() {
 
 reconnect() {
         if [ "$RUNNING" -eq "0" ]; then                                                                                  
-		$RUNNING="1"                                                                                             
+		RUNNING="1"                                                                                             
 		logger -t INFO "Reconnecting modem now."                                                   
 		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
 		ifup $MODEMIFACE                                                                                         
-		$RUNNING="0"
+		RUNNING="0"
 	else
 		logger -t INFO "Modem is already reconnecting. Stopping."
 	fi
