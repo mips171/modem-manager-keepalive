@@ -1,84 +1,83 @@
 #!/bin/sh
 # Hotplug script for ModemManager events.  Place in /etc/hotplug.d/iface/30-keepalive_modemmanager
-# and give execute permission.  
+# and give execute permission.
 #
-# Copyright 2019 Nicholas Smith <mips171@icloud.com>
+# Copyright 2020 Nicholas Smith <mips171@icloud.com>
 #
 
-if [ "$INTERFACE" = "mobiledata" ]; then
-if [ "$ACTION" != "ifup" ]; then
+[ "$INTERFACE" != "mobiledata" ] && exit 0
+[ "$ACTION" = "ifup" ] && exit 0
+[ "$(cat /tmp/modem_hotplug_running)" = "1" ] && exit 0
+
+echo 1 > /tmp/modem_hotplug_running # Prevent multiple instances from running at the same time
+
 MODEMIFACE="mobiledata"
+MODEMINDEX="$(/usr/bin/mmcli -L -K | grep -Eo '/org/freedesktop/.*' | tr -d "'")"
 
-# TODO get modem index dynamically
-/usr/bin/mmcli -m 0 > /tmp/modemStatus 
-DISABLED=$(cat /tmp/modemStatus | grep -w "disabled")
-SEARCHING=$(cat /tmp/modemStatus | grep -w "searching")
-REGISTERED=$(cat /tmp/modemStatus | grep -w "registered")
-CONNECTED=$(cat /tmp/modemStatus | grep -w "connected")
-IDLE=$(cat /tmp/modemStatus | grep -w "idle")
+if [ -z "$MODEMINDEX" ]; then
+    checkandreconnect
+else
+    /usr/bin/mmcli -m "$MODEMINDEX" >/tmp/modemStatus
+fi
 
-RUNNING="0" # A sort of lock
+DISABLED=$(grep -w "disabled" /tmp/modemStatus)
+SEARCHING=$(grep -w "searching" /tmp/modemStatus)
+REGISTERED=$(grep -w "registered" /tmp/modemStatus)
+CONNECTED=$(grep -w "connected" /tmp/modemStatus)
+IDLE=$(grep -w "idle" /tmp/modemStatus)
 
 checkandreconnect() {
-	logger -t INFO "Giving 10 extra seconds to complete modem setup."
-	sleep 10
-	logger -t INFO "Beginning ping test."
-	ping -c3 openwrt.org
-	if [ $? -eq 0 ]; then
-		logger -t INFO "Modem is connected. 3 successful pings."
-	else
-                if [ "$RUNNING" -eq "0" ]; then                                                                                  
-                        RUNNING="1"                                                                                             
-                        logger -t INFO "Modem failed ping test. Reconnecting."                                                   
-                        /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
-                        ifup $MODEMIFACE                                                                                         
-                        RUNNING="0"
-		else
-			logger -t INFO "Modem is already reconnecting. Stopping."
-                fi
-	fi
+    logger -t INFO "Giving 10 extra seconds to complete modem setup."
+    sleep 10
+    logger -t INFO "Beginning ping test."
+    ping -c3 -s56 -w30 www.telcoantennas.com.au
+    if [ $? -eq 0 ]; then
+        logger -t INFO "Modem is connected. 3 successful pings."
+        echo 0 > /tmp/modem_hotplug_running
+    else
+        logger -t INFO "Modem failed ping test. Reconnecting."
+        /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
+        sleep 10
+        ifup $MODEMIFACE
+    fi
 }
 
 reconnect() {
-        if [ "$RUNNING" -eq "0" ]; then                                                                                  
-		RUNNING="1"                                                                                             
-		logger -t INFO "Reconnecting modem now."                                                   
-		/etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start                               
-		ifup $MODEMIFACE                                                                                         
-		RUNNING="0"
-	else
-		logger -t INFO "Modem is already reconnecting. Stopping."
-	fi
+    logger -t INFO "Reconnecting modem now."
+    /etc/init.d/modemmanager stop && sleep 2 && /etc/init.d/modemmanager start
+    sleep 10
+    ifup $MODEMIFACE
 }
 
 logger -t INFO "Hotplug: Modem Hotplug script is running."
 
 if [ -n "$DISABLED" ]; then
-	logger -t INFO	"Modem is disabled. Will attempt to initiate connection."
-	logger -t DEBUG "$DISABLED"
-	reconnect
+    logger -t INFO "Modem is disabled. Will attempt to initiate connection."
+    logger -t DEBUG "$DISABLED"
+    reconnect
 fi
 
 if [ -n "$CONNECTED" ]; then
-	logger -t INFO "Modem reports as connected. Checking actual connectivity."
-	checkandreconnect
+    logger -t INFO "Modem reports as connected. Checking actual connectivity."
+    checkandreconnect
 fi
 
 if [ -n "$SEARCHING" ]; then
-	logger -t INFO "Modem is searching."
-	checkandreconnect
+    logger -t INFO "Modem is searching."
+    checkandreconnect
 fi
 
 if [ -n "$IDLE" ]; then
-	logger -t INFO "Modem is idle.  Attempting to bring modem back online."
-	reconnect
+    logger -t INFO "Modem is idle.  Attempting to bring modem back online."
+    reconnect
 fi
 
 if [ -n "$REGISTERED" ]; then
-	logger -t INFO "Modem is registered."
-	checkandreconnect
+    logger -t INFO "Modem is registered."
+    checkandreconnect
+fi
 
-fi
+# Any time this script runs, put the current modem and bearer indexes into shared memory, for use by ltestatus and other apps.
+mmcli -L -K | awk {i++}i==2 | sed 's/^.*: //' >/tmp/modemIndex
+mmcli -m "$(cat /tmp/modemIndex)" -K | grep 'bearers.value\[1\]' | sed 's/^.*: //' >/tmp/bearerIndex
 logger -t INFO "Modem hotplug script ran."
-fi
-fi
